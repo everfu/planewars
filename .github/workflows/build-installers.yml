@@ -68,7 +68,7 @@ jobs:
           "/c/Program Files (x86)/NSIS/makensis.exe" \
             "-DAPPVERSION=${{ steps.version.outputs.version }}" \
             "-DDISTDIR=${DISTDIR}" \
-            build/installer.nsi
+            packaging/installer.nsi
 
       - name: Package macOS DMG
         if: startsWith(matrix.os, 'macos')
