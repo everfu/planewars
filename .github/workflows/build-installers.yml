@@ -1,0 +1,143 @@
+name: Build Installers
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.artifact }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: windows-x64
+            sep: ';'
+          - os: macos-latest
+            artifact: macos-arm64
+            sep: ':'
+          - os: ubuntu-latest
+            artifact: linux-amd64
+            sep: ':'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pygame pyinstaller
+
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-${GITHUB_SHA::8}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          pyinstaller --noconfirm --clean --onedir --windowed \
+            --name Planewar \
+            --add-data "images${{ matrix.sep }}images" \
+            --add-data "sound${{ matrix.sep }}sound" \
+            --add-data "font${{ matrix.sep }}font" \
+            main.py
+
+      - name: Package Windows installer (NSIS)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          choco install nsis --yes --no-progress >/dev/null 2>&1
+          DISTDIR="$(cygpath -w "$(pwd)/dist/Planewar")"
+          "/c/Program Files (x86)/NSIS/makensis.exe" \
+            /DAPPVERSION="${{ steps.version.outputs.version }}" \
+            "/DDISTDIR=${DISTDIR}" \
+            build/installer.nsi
+
+      - name: Package macOS DMG
+        if: startsWith(matrix.os, 'macos')
+        shell: bash
+        run: |
+          hdiutil create -volname "Planewar" -srcfolder dist/Planewar.app \
+            -ov -format UDZO "Planewar-macOS-${{ matrix.artifact }}-${{ steps.version.outputs.version }}.dmg"
+
+      - name: Package Linux DEB
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          set -e
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_DIR="pkg/planewar"
+          mkdir -p "${PKG_DIR}/DEBIAN" \
+                   "${PKG_DIR}/usr/bin" \
+                   "${PKG_DIR}/usr/share/planewar" \
+                   "${PKG_DIR}/usr/share/applications"
+          cp -r dist/Planewar/* "${PKG_DIR}/usr/share/planewar/"
+          printf '#!/bin/sh\nexec /usr/share/planewar/planewar "$@"\n' > "${PKG_DIR}/usr/bin/planewar"
+          chmod +x "${PKG_DIR}/usr/bin/planewar"
+          cat > "${PKG_DIR}/usr/share/applications/planewar.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=飞机大战
+Name[en]=PlaneWar
+Comment=经典飞机大战射击游戏
+Comment[en]=Classic airplane shooter game
+Exec=/usr/bin/planewar
+Categories=Game;ArcadeGame;
+Terminal=false
+StartupNotify=true
+EOF
+          cat > "${PKG_DIR}/DEBIAN/control" <<EOF
+Package: planewar
+Version: ${VERSION}
+Section: games
+Priority: optional
+Architecture: amd64
+Maintainer: everfu
+Description: 飞机大战 PlaneWar
+ Classic airplane shooter game built with pygame.
+EOF
+          dpkg-deb --build --root-owner-group "${PKG_DIR}" "Planewar-linux-amd64-${VERSION}.deb"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: planewar-${{ matrix.artifact }}
+          path: |
+            Planewar-Setup-*.exe
+            Planewar-macOS-*.dmg
+            Planewar-linux-*.deb
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create/update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" artifacts/*/Planewar-* --generate-notes \
+            || gh release upload "${GITHUB_REF_NAME}" artifacts/*/Planewar-* --clobber

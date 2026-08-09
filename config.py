@@ -1,7 +1,18 @@
 import json
+import os
+import sys
 from pygame.locals import *
 
-CONFIG_FILE='settings.json'
+
+def _config_path():
+    # 打包版把设置写到用户目录，避免写入安装目录失败
+    if getattr(sys, 'frozen', False):
+        d = os.path.join(os.path.expanduser('~'), '.planewar')
+        os.makedirs(d, exist_ok=True)
+        return os.path.join(d, 'settings.json')
+    return 'settings.json'
+
+CONFIG_FILE = _config_path()
 
 DEFAULT_KEYS={
     'up':K_w,

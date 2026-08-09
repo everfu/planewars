@@ -12,6 +12,21 @@ import supply
 import config
 
 
+# PyInstaller 打包后，资源（images/sound/font）随程序一起提取，
+# 这里把工作目录切到资源目录，保证所有相对路径加载都能找到文件
+if getattr(sys, 'frozen', False):
+    BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    os.chdir(BASE_DIR)
+
+def data_file(name):
+    # 打包版的可写数据（最高分、设置）放到用户目录，避免写入安装目录失败
+    if getattr(sys, 'frozen', False):
+        d = os.path.join(os.path.expanduser('~'), '.planewar')
+        os.makedirs(d, exist_ok=True)
+        return os.path.join(d, name)
+    return name
+
+
 pygame.init()
 pygame.mixer.init()
 
@@ -93,14 +108,14 @@ INVINCIBLE_TIME=USEREVENT+2
 
 def load_record():
     try:
-        with open('record.txt','r') as f:
+        with open(data_file('record.txt'), 'r') as f:
             return int(f.read().strip())
     except:
         return 0
 
 def save_record(score):
     try:
-        with open('record.txt','w') as f:
+        with open(data_file('record.txt'), 'w') as f:
             f.write(str(score))
     except:
         pass
