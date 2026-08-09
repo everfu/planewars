@@ -13,9 +13,12 @@ Unicode true
 !ifndef DISTDIR
   !error "DISTDIR not defined"
 !endif
+!ifndef INSTALLER_OUT
+  !define INSTALLER_OUT "Planewar-Setup-${APPVERSION}.exe"
+!endif
 
 Name "${APPNAME} ${APPVERSION}"
-OutFile "Planewar-Setup-${APPVERSION}.exe"
+OutFile "${INSTALLER_OUT}"
 InstallDir "$PROGRAMFILES64\${APPNAME}"
 RequestExecutionLevel admin
 SetCompressor /SOLID lzma
