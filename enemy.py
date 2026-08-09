@@ -21,6 +21,7 @@ class SmallEnemy(pygame.sprite.Sprite):
                 randint(0,self.width-self.rect.width),\
                 randint(-5*self.height,0)
         self.mask=pygame.mask.from_surface(self.image)
+        self.destroy_index=0
 
     def move(self):
         if self.rect.top<self.height:
@@ -30,6 +31,7 @@ class SmallEnemy(pygame.sprite.Sprite):
             
     def reset(self):
         self.active=True
+        self.destroy_index=0
         self.rect.left,self.rect.top=\
                 randint(0,self.width-self.rect.width),\
                 randint(-5*self.height,0)
@@ -58,19 +60,34 @@ class MidEnemy(pygame.sprite.Sprite):
         self.mask=pygame.mask.from_surface(self.image)
         self.energy=MidEnemy.energy
         self.hit=False
+        self.destroy_index=0
+        self.shoot_delay=randint(60,150)
+        self.shoot_timer=0
 
     def move(self):
         if self.rect.top<self.height:
             self.rect.top+=self.speed
         else:
             self.reset()
-            
+
     def reset(self):
         self.active=True
         self.energy=MidEnemy.energy
+        self.destroy_index=0
+        self.shoot_timer=0
         self.rect.left,self.rect.top=\
                 randint(0,self.width-self.rect.width),\
                 randint(-10*self.height,-self.height)
+
+    def can_fire(self,inc=1):
+        if not self.active or self.rect.top<0:
+            return False
+        self.shoot_timer+=inc
+        if self.shoot_timer>=self.shoot_delay:
+            self.shoot_timer=0
+            self.shoot_delay=randint(60,150)
+            return True
+        return False
 
 class BigEnemy(pygame.sprite.Sprite):
     energy=20
@@ -100,6 +117,10 @@ class BigEnemy(pygame.sprite.Sprite):
         self.mask=pygame.mask.from_surface(self.image1)
         self.energy=BigEnemy.energy
         self.hit=False
+        self.destroy_index=0
+        self.shoot_delay=randint(40,110)
+        self.shoot_timer=0
+        self.sound_played=False
 
     def move(self):
         if self.rect.top<self.height:
@@ -110,6 +131,19 @@ class BigEnemy(pygame.sprite.Sprite):
     def reset(self):
         self.active=True
         self.energy=BigEnemy.energy
+        self.destroy_index=0
+        self.shoot_timer=0
+        self.sound_played=False
         self.rect.left,self.rect.top=\
                 randint(0,self.width-self.rect.width),\
-                randint(-15*self.height,-5*self.height)    
+                randint(-15*self.height,-5*self.height)
+
+    def can_fire(self,inc=1):
+        if not self.active or self.rect.top<0:
+            return False
+        self.shoot_timer+=inc
+        if self.shoot_timer>=self.shoot_delay:
+            self.shoot_timer=0
+            self.shoot_delay=randint(40,110)
+            return True
+        return False
