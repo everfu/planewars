@@ -66,8 +66,8 @@ jobs:
           choco install nsis --yes --no-progress >/dev/null 2>&1
           DISTDIR="$(cygpath -w "$(pwd)/dist/Planewar")"
           "/c/Program Files (x86)/NSIS/makensis.exe" \
-            /DAPPVERSION="${{ steps.version.outputs.version }}" \
-            "/DDISTDIR=${DISTDIR}" \
+            "-DAPPVERSION=${{ steps.version.outputs.version }}" \
+            "-DDISTDIR=${DISTDIR}" \
             build/installer.nsi
 
       - name: Package macOS DMG
