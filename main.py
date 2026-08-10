@@ -32,7 +32,7 @@ pygame.mixer.init()
 
 bg_size=width,height=480,700
 screen=pygame.display.set_mode(bg_size)
-pygame.display.set_caption('飞机大战—FishC Demo')
+pygame.display.set_caption('飞机大战')
 
 background=pygame.image.load('images/background.png')
 
